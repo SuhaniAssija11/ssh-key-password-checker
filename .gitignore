@@ -1,0 +1,7 @@
+dictionaries/brute-1-*.txt
+dictionaries/combined*.txt
+vendor/
+*.pot
+sshchk_*.log
+sshchk_*.rec
+.DS_Store
