@@ -5,3 +5,6 @@ vendor/
 sshchk_*.log
 sshchk_*.rec
 .DS_Store
+
+__pycache__/
+*.pyc
