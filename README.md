@@ -1,94 +1,77 @@
 # SSH Key Password Checker
 
-This is my SECURITY-107 project.  
-It checks SSH private keys for weak passphrases in a quick way.
+A simple bash script that checks whether SSH private keys are unprotected or use a weak passphrase from a common password list.
 
-It is meant to be a fast screen, not a full password audit.
+Meant to be a fast screen, not a full password audit.
 
 ## What the output means
 
-| Status | Meaning |
-|--------|---------|
-| `UNPROTECTED` | The key has no passphrase |
-| `WEAK` | The passphrase was found in the test list |
-| `OK` | Passphrase was not found in the test list within timeout |
 
-Important: `OK` does not mean "perfectly secure." It only means not found in this check.
+| Status          | Meaning                                               |
+| --------------- | ----------------------------------------------------- |
+| `SKIPPED`       | File not found, or not a private key                  |
+| `UNPROTECTED`   | The key has no passphrase                             |
+| `WEAK PASSWORD` | The passphrase was found in `dictionaries/common.txt` |
+| `GOOD PASSWORD` | Passphrase was not found in the common password list  |
 
-## What password lists it uses
+
+Important: `GOOD PASSWORD` does not mean "perfectly secure." It only means the passphrase was not in this wordlist.
+
+## What password list it uses
 
 - `dictionaries/common.txt` (common weak passwords)
-- `dictionaries/brute-1-4.txt` (all lowercase letters + digits, length 1 to 4)
-- `dictionaries/combined-1-4.txt` (common + brute list together)
+
+The first 1000 passwords come from the top of
+`[10k-most-common.txt](https://github.com/danielmiessler/SecLists/blob/master/Passwords/Common-Credentials/10k-most-common.txt)`
+in [SecLists](https://github.com/danielmiessler/SecLists) (Daniel Miessler).
+A few extra specific terms (for example `ssh`, `id_rsa`, `umiacs`, `maryland`) were added at the end.
 
 ## Requirements
 
-- Python 3
+- bash
 - OpenSSH (`ssh-keygen`)
-
-Optional:
-- John the Ripper tools for advanced workflows (`scripts/ssh2john.py` is included), but this project checks passphrases directly with `ssh-keygen`.
-
-## Setup
-
-```bash
-make -f Makefile install wordlist
-```
 
 ## Usage
 
-Check specific keys:
+Check one or more keys:
 
 ```bash
-./bin/check-ssh-key-passwords ~/.ssh/id_rsa ~/.ssh/id_ed25519
+./check-ssh-key-passwords.sh ~/.ssh/id_rsa ~/.ssh/id_ed25519
 ```
 
-Scan a directory:
+Example output:
 
-```bash
-./bin/check-ssh-key-passwords --dir ~/.ssh
+```text
+UNPROTECTED: /home/you/.ssh/id_rsa
+WEAK PASSWORD: /home/you/.ssh/id_ed25519 (passphrase: password)
+GOOD PASSWORD: /home/you/.ssh/id_ecdsa
 ```
 
-Only print problem keys:
-
-```bash
-./bin/check-ssh-key-passwords -q --dir ~/.ssh
-```
-
-Tune settings:
-
-```bash
-./bin/check-ssh-key-passwords --timeout 120 --workers 8 --max-length 3 ~/.ssh/id_ed25519
-```
+Note: if password is weak then the program will print out the weak password being used. 
 
 ## Exit codes
 
 - `0` = no weak/unprotected keys found
-- `1` = at least one weak/unprotected key found
-- `2` = usage/config error
+- `1` = at least one weak/unprotected key found, or a usage/setup error
 
-## How it works (simple)
+## How it works
 
-1. Check if each file is a private key.
-2. Check if it is encrypted.
-3. If not encrypted, report `UNPROTECTED`.
-4. If encrypted, try passphrases from the list using `ssh-keygen`.
-5. Report `WEAK` if found, otherwise `OK` (within timeout).
+1. Check that each argument is an existing file.
+2. Check that the file looks like a private key (`PRIVATE KEY` in the file).
+3. Try opening it with an empty passphrase.
+4. If that works, report `UNPROTECTED`.
+5. Otherwise try each password in `dictionaries/common.txt` with `ssh-keygen`.
+6. Report `WEAK PASSWORD` if one works, otherwise `GOOD PASSWORD`.
 
-## Limitations
+## Testing
 
-- It only checks the included wordlists.
-- Longer/unusual passphrases may not be found.
-- It is not a full security audit or key-rotation policy tool.
+See [TESTING.md](TESTING.md) for a step-by-step guide to create sample keys and verify the script.
 
 ## Project files
 
 ```text
-bin/check-ssh-key-passwords            # CLI entry point
-scripts/check_ssh_key_passwords.py     # main checker logic
-scripts/is_encrypted_key.py            # encrypted/unprotected detection
-scripts/generate-brute-wordlist.py     # brute list generator
-scripts/ssh2john.py                    # optional John helper
-dictionaries/common.txt                # weak password list
-Makefile
+check-ssh-key-passwords.sh   # main bash checker
+dictionaries/common.txt      # weak password list
+TESTING.md                   # how to test the script
 ```
+
